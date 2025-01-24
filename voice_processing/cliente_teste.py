@@ -1,37 +1,39 @@
 import socket
-import time
+import threading
 
-def cliente_nota(host='127.0.0.1', port=12346):
-    with socket.create_connection((host, port)) as client_sockt:
-        print("iniciando envio...")
-        client_sockt.sendall(b"iniciar")
+def receber_notas(client_socket):
+    while True:
+        try:
+            data, _ = client_socket.recvfrom(1024) 
+            nota = data.decode()
+            print(f"Nota recebida: {nota}")
+        except Exception as e:
+            print(f"Erro ao receber dados: {e}")
+            break
 
-        duracao = 5
-        inicio = time.time()
+
+def cliente_notas(host='127.0.0.1', port=12346):
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    try:
+        threading.Thread(target=receber_notas, args=(client_socket,), daemon=True).start()
 
         while True:
-            data = client_sockt.recv(1024)
-            print("Nota Recebida", data.decode())
+            print("Digite um comando (iniciar, parar, continuar, sair):")
+            comando = input().strip().lower()
 
-            if time.time() - inicio > duracao:
-                print(f"Tempo de escuta de {duracao} segundos finalizado")
+            if comando in ['iniciar', 'parar', 'continuar']:
+                client_socket.sendto(comando.encode(), (host, port))
+            elif comando == 'sair':
+                print("Encerrando cliente...")
                 break
-        
-        client_sockt.sendall(b"parar")
-        time.sleep(3)
-        client_sockt.sendall(b"continuar")
-        
-        inicio = time.time()
-        while True:
-            data = client_sockt.recv(1024)
-            print("Nota Recebida", data.decode())
+            else:
+                print("Comando inválido. Tente novamente.")
+    except KeyboardInterrupt:
+        print("Cliente encerrado manualmente.")
+    finally:
+        client_socket.close()
 
-
-            if time.time() - inicio > duracao:
-                print(f"Tempo de escuta de {duracao} segundos finalizado")
-                break
-
-        print("CABO!")
 
 if __name__ == "__main__":
-    cliente_nota()
+    cliente_notas()
